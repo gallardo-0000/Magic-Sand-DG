@@ -55,19 +55,20 @@ public:
 
 private:
 
-RainSimulation rain;
+    // SIMULACIÓN DE LLUVIA
+    RainSimulation rainSim;
 
-bool rainActive = false;
-bool localRain = false;
+    bool rainActive = false;
+    bool localRain = false;
 
-int simWidth = 160;
-int simHeight = 120;
+    int simWidth = 160;
+    int simHeight = 120;
 
-std::vector<float> terrain;
+    std::vector<float> terrain;
 
-int rainX = 80;
-int rainY = 60;
-float rainRadius = 20;
+    int rainX = 80;
+    int rainY = 60;
+    float rainRadius = 20;
 
     std::shared_ptr<KinectProjector> kinectProjector;
     SandSurfaceRenderer* sandSurfaceRenderer;
