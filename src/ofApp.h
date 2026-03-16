@@ -53,11 +53,26 @@ public:
 	std::shared_ptr<ofAppBaseWindow> projWindow;
 
 private:
-	std::shared_ptr<KinectProjector> kinectProjector;
-	SandSurfaceRenderer* sandSurfaceRenderer;
-	CMapGameController mapGameController;
-	CBoidGameController boidGameController;
 
-	// Main window ROI 
-	ofRectangle mainWindowROI;
+    RainSimulation rainSim;
+
+    bool rainEnabled = false;
+    bool localizedRainEnabled = false;
+
+    int simWidth = 160;
+    int simHeight = 120;
+
+    std::vector<float> terrainHeights;
+
+    int rainCenterX = 80;
+    int rainCenterY = 60;
+    float rainRadius = 20.0f;
+
+    std::shared_ptr<KinectProjector> kinectProjector;
+    SandSurfaceRenderer* sandSurfaceRenderer;
+    CMapGameController mapGameController;
+    CBoidGameController boidGameController;
+
+    // Main window ROI
+    ofRectangle mainWindowROI;
 };
