@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include "SandSurfaceRenderer/SandSurfaceRenderer.h"
 #include "Games/MapGameController.h"
 #include "Games/BoidGameController.h"
+#include "RainSimulation.h"
 
 class ofApp : public ofBaseApp {
 
@@ -54,19 +55,19 @@ public:
 
 private:
 
-    RainSimulation rainSim;
+RainSimulation rain;
 
-    bool rainEnabled = false;
-    bool localizedRainEnabled = false;
+bool rainActive = false;
+bool localRain = false;
 
-    int simWidth = 160;
-    int simHeight = 120;
+int simWidth = 160;
+int simHeight = 120;
 
-    std::vector<float> terrainHeights;
+std::vector<float> terrain;
 
-    int rainCenterX = 80;
-    int rainCenterY = 60;
-    float rainRadius = 20.0f;
+int rainX = 80;
+int rainY = 60;
+float rainRadius = 20;
 
     std::shared_ptr<KinectProjector> kinectProjector;
     SandSurfaceRenderer* sandSurfaceRenderer;
