@@ -62,20 +62,42 @@ void ofApp::setup() {
 
 
 void ofApp::update() {
-    // Call kinectProjector->update() first during the update function()
-	kinectProjector->update();
-   	sandSurfaceRenderer->update();
-    
-    //if (kinectProjector->isROIUpdated())
-	if (kinectProjector->getKinectROI() != mapGameController.getKinectROI())
-	{
-		ofRectangle kinectROI = kinectProjector->getKinectROI();
-		mapGameController.setKinectROI(kinectROI);
-		boidGameController.setKinectROI(kinectROI);
-	}
+kinectProjector->update();
+sandSurfaceRenderer->update();
 
-	mapGameController.update();
-	boidGameController.update();
+// --- SIMULACIÓN DE LLUVIA ---
+for(int y=0; y<simHeight; y++){
+    for(int x=0; x<simWidth; x++){
+        int i = y*simWidth + x;
+        // terreno real si tu SandSurfaceRenderer tiene función getHeightAt
+        terrain[i] = sandSurfaceRenderer->getHeightAt(x, y); 
+        // Si no tienes getHeightAt, usa esto de prueba:
+        // terrain[i] = 0.02*y;
+    }
+}
+
+// --- POSICIÓN DE LA LLUVIA CON MANO ---
+if(kinectProjector){
+    ofVec2f handPos = kinectProjector->getHandPosition();
+    rainX = handPos.x / sandSurfaceRenderer->getWidth() * simWidth;
+    rainY = handPos.y / sandSurfaceRenderer->getHeight() * simHeight;
+}
+
+// --- LLUVIA ---
+if(rainActive) rainSim.addRain(0.01);           // global
+if(localRain) rainSim.addLocalizedRain(rainX, rainY, rainRadius, 0.05); // localizada
+
+rainSim.update(terrain);
+
+// --- Resto de tus controles de juegos ---
+if(kinectProjector->getKinectROI() != mapGameController.getKinectROI()){
+    ofRectangle kinectROI = kinectProjector->getKinectROI();
+    mapGameController.setKinectROI(kinectROI);
+    boidGameController.setKinectROI(kinectROI);
+}
+
+mapGameController.update();
+boidGameController.update();
 }
 
 
@@ -97,158 +119,150 @@ void ofApp::draw()
 
 void ofApp::drawProjWindow(ofEventArgs &args) 
 {
-	if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING)
-	{
-		sandSurfaceRenderer->drawProjectorWindow();
-		mapGameController.drawProjectorWindow();
-		boidGameController.drawProjectorWindow();
-	}
-	kinectProjector->drawProjectorWindow();
+	if(kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING){
+    sandSurfaceRenderer->drawProjectorWindow();
+    mapGameController.drawProjectorWindow();
+    boidGameController.drawProjectorWindow();
+}
+
+// --- DIBUJAR LLUVIA ---
+const std::vector<float>& water = rainSim.getWater();
+float cellW = ofGetWidth()/simWidth;
+float cellH = ofGetHeight()/simHeight;
+
+ofEnableAlphaBlending();
+ofEnableSmoothing();
+
+for(int y=0; y<simHeight; y++){
+    for(int x=0; x<simWidth; x++){
+        int i = y*simWidth + x;
+        float w = water[i];
+        if(w>0.001){
+            ofSetColor(0, 120, 255, ofMap(w, 0, 1, 50, 200));
+            float radius = ofMap(w, 0, 1, 2, 6);
+            ofDrawCircle(x*cellW + cellW/2, y*cellH + cellH/2, radius);
+        }
+    }
+}
+
+ofSetColor(255);
+
+kinectProjector->drawProjectorWindow();
 }
 
 void ofApp::keyPressed(int key) 
 {
-	if (key == 'c')
-	{
-		kinectProjector->SaveKinectColorImage();
-	}
-	else if (key == 'd')
-	{
-		kinectProjector->SaveFilteredDepthImage();
-	}
-	else if (key == ' ')
-	{
-		if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && 
-			boidGameController.isIdle()) // do not start map game if boidgame is not idle
-		{
-			if (mapGameController.isIdle())
-			{
-				mapGameController.setDebug(kinectProjector->getDumpDebugFiles());
-				mapGameController.StartGame();
-			}
-			else
-			{
-				mapGameController.ButtonPressed();
-			}
-		}
-		else if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_SETUP)
-		{
-			// Try to start the application
-			kinectProjector->startApplication();
-		}
-	}
-	else if (key == 'f' || key == 'r')
-	{
-		if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING)
-		{
-			if (mapGameController.isIdle())
-			{
-				boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
-				boidGameController.StartGame(2);
-			}
-			else 
-			{
-				mapGameController.EndButtonPressed();
-			}
-		}
-	}
-	else if (key == '1') // Absolute beginner
-	{
-		if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
-		{
-			boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
-			boidGameController.StartGame(0);
-		}
-	}
-	else if (key == '2') 
-	{
-		if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
-		{
-			boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
-			boidGameController.StartGame(1);
-		}
-	}
-	else if (key == '3')
-	{
-		if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
-		{
-			boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
-			boidGameController.StartGame(2);
-		}
-	}
-	else if (key == '4')
-	{
-		if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
-		{
-			boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
-			boidGameController.StartGame(3);
-		}
-	}
-	else if (key == 'm')
-	{
-		if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
-		{
-			boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
-			boidGameController.StartSeekMotherGame();
-		}
-	}
-	else if (key == 't')
-	{
-		mapGameController.setDebug(kinectProjector->getDumpDebugFiles());
-		mapGameController.RealTimeTestMe();
-	}
-	else if (key == 'w')
-	{
-		mapGameController.setDebug(kinectProjector->getDumpDebugFiles());
-		mapGameController.DebugTestMe();
-	}
+    // --- CONTROLES EXISTENTES DE KINECT Y JUEGOS ---
+    if (key == 'c')
+    {
+        kinectProjector->SaveKinectColorImage();
+    }
+    else if (key == 'd')
+    {
+        kinectProjector->SaveFilteredDepthImage();
+    }
+    else if (key == ' ')
+    {
+        if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && 
+            boidGameController.isIdle())
+        {
+            if (mapGameController.isIdle())
+            {
+                mapGameController.setDebug(kinectProjector->getDumpDebugFiles());
+                mapGameController.StartGame();
+            }
+            else
+            {
+                mapGameController.ButtonPressed();
+            }
+        }
+        else if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_SETUP)
+        {
+            kinectProjector->startApplication();
+        }
+    }
+    else if (key == 'f' || key == 'r')
+    {
+        if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING)
+        {
+            if (mapGameController.isIdle())
+            {
+                boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
+                boidGameController.StartGame(2);
+            }
+            else 
+            {
+                mapGameController.EndButtonPressed();
+            }
+        }
+    }
+    else if (key == '1') // Absolute beginner
+    {
+        if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
+        {
+            boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
+            boidGameController.StartGame(0);
+        }
+    }
+    else if (key == '2') 
+    {
+        if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
+        {
+            boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
+            boidGameController.StartGame(1);
+        }
+    }
+    else if (key == '3')
+    {
+        if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
+        {
+            boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
+            boidGameController.StartGame(2);
+        }
+    }
+    else if (key == '4')
+    {
+        if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
+        {
+            boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
+            boidGameController.StartGame(3);
+        }
+    }
+    else if (key == 'm')
+    {
+        if (kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING && mapGameController.isIdle())
+        {
+            boidGameController.setDebug(kinectProjector->getDumpDebugFiles());
+            boidGameController.StartSeekMotherGame();
+        }
+    }
+    else if (key == 't')
+    {
+        mapGameController.setDebug(kinectProjector->getDumpDebugFiles());
+        mapGameController.RealTimeTestMe();
+    }
+    else if (key == 'w')
+    {
+        mapGameController.setDebug(kinectProjector->getDumpDebugFiles());
+        mapGameController.DebugTestMe();
+    }
+
+    // --- NUEVOS CONTROLES DE LLUVIA ---
+    if(key == 'b'){      // alterna lluvia global
+        rainActive = !rainActive;
+    }
+
+    if(key == 'n'){      // alterna tormenta localizada sobre la mano
+        localRain = !localRain;
+    }
+
+    if(key == 'v'){      // limpiar toda el agua
+        rainSim.clearWater();
+    }
+
+    // mover tormenta manualmente con flechas
+    if(key == OF_KEY_LEFT)  rainX -= 2;
+    if(key == OF_KEY_RIGHT) rainX += 2;
+    if(key == OF_KEY_UP)    rainY -= 2;
+    if(key == OF_KEY_DOWN)  rainY += 2;
 }
-
-void ofApp::keyReleased(int key) {
-
-}
-
-void ofApp::mouseMoved(int x, int y) {
-
-}
-
-void ofApp::mouseDragged(int x, int y, int button) {
-
-	// We assume that we only use this during ROI annotation
-	kinectProjector->mouseDragged(x - mainWindowROI.x, y - mainWindowROI.y, button);
-}
-
-void ofApp::mousePressed(int x, int y, int button) 
-{
-	if (mainWindowROI.inside((float)x, (float)y))
-	{
-		kinectProjector->mousePressed(x-mainWindowROI.x, y-mainWindowROI.y, button);
-	}
-}
-
-void ofApp::mouseReleased(int x, int y, int button) {
-	// We assume that we only use this during ROI annotation
-	kinectProjector->mouseReleased(x - mainWindowROI.x, y - mainWindowROI.y, button);
-
-}
-
-void ofApp::mouseEntered(int x, int y) {
-
-}
-
-void ofApp::mouseExited(int x, int y) {
-
-}
-
-void ofApp::windowResized(int w, int h) {
-
-}
-
-void ofApp::gotMessage(ofMessage msg) {
-
-}
-
-void ofApp::dragEvent(ofDragInfo dragInfo) {
-
-}
-
