@@ -26,51 +26,65 @@ ofApp.cpp - Edición Mejorada para Lluvia Localizada
 #include "ofApp.h"
 
 void ofApp::setup() {
+    // 1. Configuración de la ventana y rendimiento
     ofSetFrameRate(60);
     ofBackground(0);
+    ofSetVerticalSync(true);
     
-    // Inicializar Kinect y Renderizador
+    // 2. Inicializar Kinect y Renderizador (Uso de smart pointers recomendado)
     kinectProjector = std::make_shared<KinectProjector>(projWindow);
     kinectProjector->setup(true);
+    
     sandSurfaceRenderer = new SandSurfaceRenderer(kinectProjector, projWindow);
     sandSurfaceRenderer->setup(true);
     
-    // Preparar el contenedor del terreno
+    // 3. Preparar simulación de lluvia y terreno
+    // Aseguramos que el vector tenga el tamaño correcto desde el inicio
     terrain.assign(simWidth * simHeight, 0.0f);
+    rainSim.setup(simWidth, simHeight); // Inicialización interna de la lluvia
 
-    // Configuración de ROI y Juegos
+    // 4. Configuración de ROI (Región de Interés)
     ofVec2f kinectRes = kinectProjector->getKinectRes();
-    mainWindowROI = ofRectangle((ofGetWindowWidth()-kinectRes.x)/2, (ofGetWindowHeight()-kinectRes.y)/2, kinectRes.x, kinectRes.y);
+    mainWindowROI = ofRectangle((ofGetWindowWidth()-kinectRes.x)/2, 
+                                 (ofGetWindowHeight()-kinectRes.y)/2, 
+                                 kinectRes.x, kinectRes.y);
 
     mapGameController.setup(kinectProjector);
     boidGameController.setup(kinectProjector);
+    
+    // Inicializar estados
+    rainActive = false;
+    localRain = false;
+    rainRadius = 15.0f;
 }
 
 void ofApp::update() {
     kinectProjector->update();
     sandSurfaceRenderer->update();
 
-    // 1. Actualizar el mapa de terreno desde el Kinect
+    // 5. Actualizar mapa de terreno con protección de datos
     for(int y=0; y<simHeight; y++){
         for(int x=0; x<simWidth; x++){
             int i = y*simWidth + x;
-            // Si tu clase SandSurfaceRenderer no tiene getHeightAt, 
-            // asegúrate de implementarla o usa un valor fijo de 0.0 para probar.
-            terrain[i] = sandSurfaceRenderer->getHeightAt(x, y); 
+            float h = sandSurfaceRenderer->getHeightAt(x, y);
+            
+            // Protección: Si el sensor devuelve un valor no válido (NaN), lo tratamos como suelo
+            terrain[i] = (h == h) ? h : 0.0f; 
         }
     }
 
-    // 2. Seguir la mano para la lluvia localizada
+    // 6. Lógica de seguimiento de mano para lluvia
     if(kinectProjector && kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING){
         ofVec2f handPos = kinectProjector->getHandPosition();
-        // Convertimos la posición del Kinect a la escala de la simulación
-        rainX = ofMap(handPos.x, 0, kinectProjector->getKinectRes().x, 0, simWidth);
-        rainY = ofMap(handPos.y, 0, kinectProjector->getKinectRes().y, 0, simHeight);
+        
+        // Mapeo preciso: Convierte la coordenada del sensor a la de la simulación
+        rainX = ofMap(handPos.x, 0, kinectRes.x, 0, simWidth, true);
+        rainY = ofMap(handPos.y, 0, kinectRes.y, 0, simHeight, true);
     }
 
-    // 3. Aplicar física de lluvia
-    if(rainActive) rainSim.addRain(0.01);
-    if(localRain)  rainSim.addLocalizedRain(rainX, rainY, rainRadius, 0.15);
+    // 7. Ejecutar simulación física
+    if(rainActive) rainSim.addRain(0.012f); // Lluvia global ligera
+    if(localRain)  rainSim.addLocalizedRain(rainX, rainY, rainRadius, 0.2f); // Lluvia fuerte en mano
 
     rainSim.update(terrain);
 
@@ -80,9 +94,11 @@ void ofApp::update() {
 
 void ofApp::drawProjWindow(ofEventArgs &args) {
     if(kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_RUNNING){
+        
+        // Dibujar el mapa de colores de la arena primero
         sandSurfaceRenderer->drawProjectorWindow();
         
-        // --- DIBUJAR EL AGUA ---
+        // 8. Capa de AGUA (Renderizado mejorado)
         const std::vector<float>& water = rainSim.getWater();
         float cellW = (float)ofGetWindowWidth() / simWidth;
         float cellH = (float)ofGetWindowHeight() / simHeight;
@@ -91,26 +107,35 @@ void ofApp::drawProjWindow(ofEventArgs &args) {
         for(int y=0; y<simHeight; y++){
             for(int x=0; x<simWidth; x++){
                 float w = water[y*simWidth + x];
-                if(w > 0.001){
-                    // Color azul con transparencia basada en la cantidad de agua
-                    ofSetColor(0, 120, 255, ofMap(w, 0, 1, 60, 220));
-                    ofDrawCircle(x*cellW + cellW/2, y*cellH + cellH/2, ofMap(w, 0, 1, 2, 7));
+                if(w > 0.005f){ // Umbral para no dibujar gotas invisibles
+                    
+                    // El color se vuelve más opaco y oscuro cuanto más profunda es el agua
+                    float opacity = ofMap(w, 0, 0.5, 80, 230, true);
+                    ofSetColor(0, 130, 255, opacity);
+                    
+                    // Dibujamos rectángulos para una capa de agua continua
+                    ofDrawRectangle(x*cellW, y*cellH, cellW + 0.5f, cellH + 0.5f);
                 }
             }
         }
         ofDisableAlphaBlending();
-        ofSetColor(255);
+        
+        // Dibujar elementos de juego encima del agua
+        mapGameController.drawProjectorWindow();
+        boidGameController.drawProjectorWindow();
     }
 }
 
 void ofApp::keyPressed(int key) {
-    // Controles de lluvia
+    // Controles de usuario
     if(key == 'b' || key == 'B') rainActive = !rainActive;
     if(key == 'n' || key == 'N') localRain = !localRain;
     if(key == 'v' || key == 'V') rainSim.clearWater();
     
-    // Iniciar aplicación si está en espera
-    if(key == ' ' && kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_SETUP){
-        kinectProjector->startApplication();
+    // Control de calibración/inicio
+    if(key == ' '){
+        if(kinectProjector->GetApplicationState() == KinectProjector::APPLICATION_STATE_SETUP){
+            kinectProjector->startApplication();
+        }
     }
 }
