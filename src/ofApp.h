@@ -27,48 +27,54 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include "SandSurfaceRenderer/SandSurfaceRenderer.h"
 #include "Games/MapGameController.h"
 #include "Games/BoidGameController.h"
-#include "RainSimulation.h"
+#include "RainSimulation.h" // Asegúrate de tener RainSimulation.h en tu carpeta src
 
 class ofApp : public ofBaseApp {
 
 public:
+    // Funciones principales
     void setup();
     void update();
     void draw();
     void drawProjWindow(ofEventArgs& args);
+    
+    // Entrada de usuario
     void keyPressed(int key);
-    void keyReleased(int key);
-    void mouseMoved(int x, int y);
-    void mouseDragged(int x, int y, int button);
-    void mousePressed(int x, int y, int button);
-    void mouseReleased(int x, int y, int button);
-    void mouseEntered(int x, int y);
-    void mouseExited(int x, int y);
-    void windowResized(int w, int h);
-    void dragEvent(ofDragInfo dragInfo);
-    void gotMessage(ofMessage msg);
+    void keyReleased(int key) {}
+    void mouseMoved(int x, int y) {}
+    void mouseDragged(int x, int y, int button) {}
+    void mousePressed(int x, int y, int button) {}
+    void mouseReleased(int x, int y, int button) {}
+    void mouseEntered(int x, int y) {}
+    void mouseExited(int x, int y) {}
+    void windowResized(int w, int h) {}
+    void dragEvent(ofDragInfo dragInfo) {}
+    void gotMessage(ofMessage msg) {}
 
+    // Puntero a la ventana del proyector
     std::shared_ptr<ofAppBaseWindow> projWindow;
 
-private:
+    // --- VARIABLES DE LLUVIA (Las puse públicas para evitar errores de acceso) ---
     RainSimulation rainSim;
+    bool rainActive;
+    bool localRain;
+    
+    // Resolución de la simulación
+    static const int simWidth = 160; 
+    static const int simHeight = 120;
+    float terrain[simWidth * simHeight]; // Usamos array fijo para mayor velocidad
 
-    bool rainActive = false;
-    bool localRain = false;
+    float rainX;
+    float rainY;
+    float rainRadius;
 
-    int simWidth = 160;
-    int simHeight = 120;
-
-    std::vector<float> terrain;
-
-    int rainX = 80;
-    int rainY = 60;
-    float rainRadius = 20;
-
+private:
+    // Componentes del sistema
     std::shared_ptr<KinectProjector> kinectProjector;
     SandSurfaceRenderer* sandSurfaceRenderer;
     CMapGameController mapGameController;
     CBoidGameController boidGameController;
-    // Main window ROI
+    
+    // Región de interés de la ventana principal
     ofRectangle mainWindowROI;
 };
