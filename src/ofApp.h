@@ -22,59 +22,42 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #pragma once
 
 #include "ofMain.h"
-#include "ofxDatGui.h"
 #include "KinectProjector/KinectProjector.h"
 #include "SandSurfaceRenderer/SandSurfaceRenderer.h"
 #include "Games/MapGameController.h"
 #include "Games/BoidGameController.h"
-#include "RainSimulation.h" // Asegúrate de tener RainSimulation.h en tu carpeta src
+#include "RainSimulation.h" 
 
 class ofApp : public ofBaseApp {
 
 public:
-    // Funciones principales
     void setup();
     void update();
     void draw();
     void drawProjWindow(ofEventArgs& args);
-    
-    // Entrada de usuario
     void keyPressed(int key);
-    void keyReleased(int key) {}
-    void mouseMoved(int x, int y) {}
-    void mouseDragged(int x, int y, int button) {}
-    void mousePressed(int x, int y, int button) {}
-    void mouseReleased(int x, int y, int button) {}
-    void mouseEntered(int x, int y) {}
-    void mouseExited(int x, int y) {}
-    void windowResized(int w, int h) {}
-    void dragEvent(ofDragInfo dragInfo) {}
-    void gotMessage(ofMessage msg) {}
 
-    // Puntero a la ventana del proyector
     std::shared_ptr<ofAppBaseWindow> projWindow;
 
-    // --- VARIABLES DE LLUVIA (Las puse públicas para evitar errores de acceso) ---
-    RainSimulation rainSim;
-    bool rainActive;
-    bool localRain;
-    
-    // Resolución de la simulación
-    static const int simWidth = 160; 
-    static const int simHeight = 120;
-    float terrain[simWidth * simHeight]; // Usamos array fijo para mayor velocidad
-
-    float rainX;
-    float rainY;
-    float rainRadius;
-
 private:
-    // Componentes del sistema
+    // --- SISTEMA DE LLUVIA ---
+    RainSimulation rainSim;
+    bool rainActive = false;
+    bool localRain = false;
+
+    const int simWidth = 160;
+    const int simHeight = 120;
+    std::vector<float> terrain;
+
+    float rainX = 80;
+    float rainY = 60;
+    float rainRadius = 15.0;
+
+    // --- COMPONENTES CORE ---
     std::shared_ptr<KinectProjector> kinectProjector;
     SandSurfaceRenderer* sandSurfaceRenderer;
     CMapGameController mapGameController;
     CBoidGameController boidGameController;
     
-    // Región de interés de la ventana principal
     ofRectangle mainWindowROI;
 };
